@@ -146,7 +146,10 @@ class CI_Parser {
 			$replace = array_merge(
 				$replace,
 				is_array($val)
-					? $this->_parse_pair($key, $val, $template)
+					? array_merge(
+						$this->_parse_pair($key, $val, $template),
+						$this->_parse_dot($key, $val, $template)
+					)
 					: $this->_parse_single($key, (string) $val, $template)
 			);
 		}
@@ -245,4 +248,39 @@ class CI_Parser {
 		return $replace;
 	}
 
+	/**
+	 * Parse a nested tag
+	 *
+	 * Input data is $data['some_tag']['level2'] = "Hello Level 2";
+	 * 
+	 * Parses nested tag : {some_tag.level2} to "Hello Level 2"
+	 *
+	 * @param string
+	 * @param array
+	 * @param string
+	 * @return string
+	 */
+	protected function _parse_dot($variable, $data, $string)
+	{
+		// error_log("_parse_dot($variable, $data, $string)");
+		$replace = array();
+		$pattern = '#'.preg_quote($this->l_delim.$variable.'.').'(.+?)'.preg_quote($this->r_delim).'#s';
+		preg_match_all( $pattern, $string, $matches, PREG_SET_ORDER);
+		foreach($matches as $match) {
+			$str = '';
+			$temp = array();
+			foreach ($data as $key => $val) {
+				$datakey = $this->l_delim.$variable.'.'.$key.$this->r_delim;
+				if (is_array($val)) {
+					$temp = array_merge($temp, $this->_parse_dot($variable.'.'.$key, $val, $string));
+				} else {
+					if (strcmp($match[0],$datakey) == 0) {
+						$temp[$match[0]] = $val;
+					}
+				}
+			}
+			$replace = array_merge($replace,$temp);
+		}
+		return $replace;
+	}                                                                                       
 }
